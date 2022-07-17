@@ -4,16 +4,9 @@ const fs = require("fs");
 var compression = require('compression');
 var session = require('express-session');
 var fileStore = require('session-file-store')(session);
-var passport = require('passport');
-var LocalStrategy = require('passport-local').Strategy;
+var flash  = require('connect-flash');
 
 const PORT = 80;
-
-var authData = {
-    email: 'admin',
-    pw: 'admin',
-    nickname: '관리자',
-}
 
 app.use(express.static('public'));
 app.use(express.urlencoded({ extends: false}));
@@ -25,42 +18,11 @@ app.use(session({
     saveUninitialized: true,
     store: new fileStore()
 }));
+app.use(flash());
 
-app.use(passport.initialize());
-app.use(passport.session());
+var passport = require('./lib/passport')(app);
 
-passport.serializeUser((user, done) => {
-    done(null, user.email);
-});
 
-passport.deserializeUser((id, done) => {
-    done(null, authData);
-});
-
-passport.use(new LocalStrategy({
-    usernameField: 'email',
-    passwordField: 'pw'
-},
-(username, password, done) => {
-    if (username === authData.email) {
-        if (password === authData.pw) {
-            return done(null, authData);
-        } else {
-            return done(null, false, {
-                message: 'Incorrect password.'
-            });
-        }
-    } else {
-        return done(null, false, {
-            message: 'Incorrect username.'
-        });
-    }
-}));
-
-app.post('/auth/login', passport.authenticate('local', {
-    successRedirect: '/',
-    failureRedirect: '/auth/login'
-}));
 
 app.get('*', (req, res, next) => {
     fs.readdir('./data', (err, filelist) => {
@@ -71,8 +33,7 @@ app.get('*', (req, res, next) => {
 
 var indexRouter = require('./routes/index');
 var pageRouter = require('./routes/page');
-var authRouter = require('./routes/auth');
-const { initialize } = require("passport");
+var authRouter = require('./routes/auth')(passport);
 
 app.use('/', indexRouter);
 app.use('/page', pageRouter);
@@ -126,14 +87,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(PORT)
 });
-
-
-
-
-
-
-
-
 
 /* var http = require('http');
 var fs = require('fs');
